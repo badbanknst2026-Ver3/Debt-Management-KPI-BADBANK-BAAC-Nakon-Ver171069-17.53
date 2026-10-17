@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ระบบติดตามประเมินผล KPI ของ บน.2 เขตนครศรีธรรมราช</title>
+  <style>
+    :root {
+      --bg: #f1faf4;
+      --card: #ffffff;
+      --ink: #173b2b;
+      --muted: #526d5e;
+      --line: #d5e8da;
+      --primary: #16834b;
+      --primary-hover: #106b3c;
+      --primary-light: #e1f4e7;
+      --good: #087b46;
+      --warn: #855600;
+      --bad: #a52e3c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #e1f7e8 0, var(--bg) 260px);
+      color: var(--ink);
+      font: 14px/1.5 'Segoe UI', Tahoma, sans-serif;
+    }
+    main { max-width: 1350px; margin: auto; padding: 20px; }
+    header, .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header { justify-content: space-between; margin-bottom: 20px; }
+    h1 { font-size: 24px; margin: 0; color: #155b38; }
+    h2 { font-size: 17px; margin: 0 0 12px; color: #155b38; }
+    .muted { color: var(--muted); font-size: 13px; }
+    
+    .panel, .stat {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      margin: 16px 0;
+      box-shadow: 0 5px 18px rgba(22, 105, 58, .07);
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .stats strong { display: block; font-size: 24px; color: #137947; margin-top: 4px; }
+    
+    button, input, select { font: inherit; }
+    button {
+      border: 0;
+      background: var(--primary);
+      color: white;
+      border-radius: 8px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background .2s;
+    }
+    button:hover { background: var(--primary-hover); }
+    button.secondary { background: var(--primary-light); color: #155b38; }
+    button.secondary:hover { background: #caebd5; }
+    button.danger { background: #fde8e8; color: var(--bad); }
+    
+    input, select {
+      border: 1px solid #c8dfd0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: #fff;
+    }
+    
+    .message {
+      background: #e3f5e9;
+      color: #205b3c;
+      padding: 12px 15px;
+      border-radius: 10px;
+      margin: 14px 0;
+      white-space: pre-wrap;
+    }
+    .message.good { background: #d7f3e2; color: #09663b; }
+    .message.warn { background: #fff2d8; color: var(--warn); }
+    .message.bad { background: #ffe7e9; color: var(--bad); }
+    .hidden { display: none !important; }
+
+    /* กราฟและแผนภูมิวิเคราะห์แบบมืออาชีพ */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      min-width: 0;
+    }
+    .chart-container { position: relative; height: 260px; width: 100%; }
+    .dashboard-grid > .panel { min-width: 0; overflow: hidden; }
+    .chart-container canvas { max-width: 100% !important; }
+    .scope-context { margin: -4px 0 14px; padding: 10px 12px; border-left: 4px solid var(--primary); background: var(--primary-light); color: var(--ink); border-radius: 6px; }
+    .import-menu { position: relative; }
+    .import-options { position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; width: min(280px, 90vw); max-height: 65vh; overflow: auto; padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 28px rgba(20,70,40,.16); }
+    .import-options button { display: block; width: 100%; text-align: left; border: 0; border-radius: 5px; background: white; color: var(--ink); padding: 9px 10px; }
+    .import-options button:hover { background: var(--primary-light); }
+
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+    }
+    th { background: #e5f5ea; color: #20543a; font-weight: 600; }
+    tbody tr:hover { background: #f2faf4; }
+
+    .modal {
+      position: fixed; inset: 0; background: rgba(10, 30, 20, 0.6);
+      display: grid; place-items: center; padding: 15px; z-index: 100;
+    }
+    .modal-card {
+      width: min(550px, 100%); background: white; border-radius: 14px; padding: 22px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .modal-card.wide { width: min(1100px, 100%); max-height: 90vh; overflow: auto; }
+    #minutesPreview { line-height: 1.7; }
+    #minutesPreview table { min-width: 0; margin: 12px 0; }
+    .field { display: block; margin: 12px 0; }
+    .field input { display: block; width: 100%; margin-top: 5px; }
+
+    @media(max-width: 950px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      main { padding-left: 12px; padding-right: 12px; }
+      .dashboard-grid > .panel { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>ระบบติดตามประเมินผล KPI ของ บน.2 เขตนครศรีธรรมราช</h1>
+      <div class="muted">ระบบติดตามและประเมินผลการบริหารจัดการหนี้ประจำปีบัญชี 2569</div>
+    </div>
+    <div class="toolbar">
+      <span id="accountBadge" class="muted">สถานะ: ผู้ใช้ทั่วไป</span>
+      <button id="loginBtn" class="secondary">เข้าสู่ระบบผู้ดูแล</button>
+      <button id="logoutBtn" class="secondary hidden">ออกจากระบบ</button>
+    </div>
+  </header>
+
+  <div id="notice" class="message">กำลังโหลดข้อมูลระบบ...</div>
+
+  <!-- สถิติภาพรวม -->
+  <section class="toolbar panel" aria-label="ตัวกรอง Dashboard">
+    <label for="dashboardHubFilter">ศูนย์</label>
+    <select id="dashboardHubFilter"><option value="">ทุกศูนย์</option></select>
+    <label for="kpiSearch">ค้นหา KPI</label>
+    <input id="kpiSearch" type="search" placeholder="ชื่อหรือลำดับ KPI">
+    <span class="muted">เรียงคะแนนถ่วงน้ำหนักจากสูงไปต่ำ</span>
+    <button id="analyzeOnePageBtn" class="secondary" type="button">วิเคราะห์เพื่อยกระดับ (One Page)</button>
+  </section>
+  <section id="stats" class="stats"></section>
+
+  <!-- ส่วนแสดงแผนภูมิและกราฟ (Professional Visualizations) -->
+  <section class="dashboard-grid">
+    <div class="panel">
+      <h2>📊 สรุปความคืบหน้าตัวชี้วัด (KPI Progress Overview)</h2>
+      <div class="chart-container">
+        <canvas id="kpiBarChart"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>🍩 คะแนนรวมที่ทำได้เทียบคะแนนเต็ม</h2>
+      <div class="chart-container">
+        <canvas id="kpiPieChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="รายงานและส่งออก">
+    <div class="toolbar">
+      <h2>รายงานและส่งออก</h2>
+      <label for="reportScopeSelect" class="muted">ระดับรายงาน KPI</label>
+      <select id="reportScopeSelect"><option value="R">ระดับเขต</option></select>
+      <button id="exportPdfBtn" type="button">📥 รายงานผู้บริหาร A4 One Page</button>
+      <button id="exportBranchPdfBtn" class="secondary" type="button">📄 PDF รายงานรายสาขาและผู้รับผิดชอบ</button>
+      <button id="exportXlsxBtn" class="secondary" type="button">📊 Excel</button>
+      <button id="exportWordBtn" class="secondary" type="button">📝 Word</button>
+      <button id="exportCsvBtn" class="secondary" type="button">📑 CSV</button>
+      <button id="exportPngBtn" class="secondary" type="button">🖼️ PNG Dashboard</button>
+      <button id="generateMinutesBtn" class="secondary" type="button">🗒️ Generate Minutes</button>
+    </div>
+  </section>
+
+  <!-- ส่วนปุ่มผู้บริหารหลัง Login สำเร็จ -->
+  <section id="adminPanel" class="panel hidden">
+    <h2>🛠️ เมนูผู้บริหาร & จัดการระบบ</h2>
+    <p class="muted">จัดการข้อมูล นำเข้าไฟล์ และบันทึกผล KPI</p>
+    <div class="toolbar" style="margin-top: 15px;">
+      <button id="changeLoginBtn" class="secondary" type="button">เปลี่ยนรหัสเข้าสู่ระบบ</button>
+      <div class="import-menu">
+        <button id="kpiImportMenuBtn" class="secondary" type="button" aria-expanded="false">📊 นำเข้า Excel ตามตัวชี้วัด ▾</button>
+        <div id="kpiImportOptions" class="import-options hidden" role="menu">
+          <button type="button" data-kpi-import="1">KPI 1 · NPLs คงเหลือ</button>
+          <button type="button" data-kpi-import="2">KPI 2 · ดอกเบี้ย NA</button>
+          <button type="button" data-kpi-import="3">KPI 3 · ลดการกันสำรอง</button>
+          <button type="button" data-kpi-import="4">KPI 4 · รับชำระหนี้ถึงกำหนด</button>
+          <button type="button" data-kpi-import="5">KPI 5 · หนี้ขาดอายุความ</button>
+          <button type="button" data-kpi-import="6">KPI 6 · หนี้จะขาดอายุความ</button>
+          <button type="button" data-kpi-import="7">KPI 7 · Write Off</button>
+          <button type="button" data-kpi-import="8">KPI 8 · ลดหนี้ดำเนินคดี</button>
+        </div>
+      </div>
+      <button id="import6035Btn" class="secondary">📂 นำเข้าไฟล์ 6035 (Bad Bank)</button>
+      <button id="initializeKpiSourcesBtn" class="secondary">🗂️ ตั้งฐาน/นำเข้า KPI 1–8 จาก Drive</button>
+        <button id="initializeDatabaseBtn" class="secondary">🔄 ตั้งฐานและนำเข้า 6035 จาก Drive</button>
+      <button id="importMonthlyBtn" class="secondary">📑 นำเข้ารายงานผล KPI ประจำเดือน (PDF)</button>
+      <button id="recordKpiBtn" class="secondary">✍️ บันทึกผล KPI</button>
+      <button id="importStaffBtn" class="secondary">👥 นำเข้าฐานรายชื่อพนักงาน</button>
+    </div>
+  </section>
+
+  <!-- ตารางข้อมูล KPI หลัก -->
+  <section class="panel">
+    <div class="toolbar">
+      <h2>📋 ตารางรายละเอียดตัวชี้วัด (KPIs)</h2>
+      <select id="scopeSelect">
+        <option value="R">ระดับเขต</option>
+        <option value="H1">ศูนย์ท่าศาลา</option>
+        <option value="H2">ศูนย์ทุ่งสง</option>
+        <option value="H3">ศูนย์นครศรีธรรมราช</option>
+      </select>
+      <select id="branchScopeSelect" class="hidden" aria-label="เลือกสาขา"><option value="">ทุกสาขาในศูนย์</option></select>
+    </div>
+    <div id="scopeContext" class="scope-context">ระดับเขตนครศรีธรรมราช</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>อันดับ</th><th>ตัวชี้วัด</th><th>น้ำหนัก</th><th>เป้าหมาย</th>
+            <th>ผลงานล่าสุด</th><th>คะแนนถ่วงน้ำหนัก</th><th>ความคืบหน้า</th>
+          </tr>
+        </thead>
+        <tbody id="kpiTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="branchReportPanel" class="panel">
+    <div class="toolbar">
+      <h2>🏢 รายงานติดตามรายสาขา</h2>
+      <input id="branchSearch" type="search" placeholder="ค้นหาสาขา/ผู้รับผิดชอบ" aria-label="ค้นหาสาขาหรือผู้รับผิดชอบ">
+      <select id="branchHubFilter" aria-label="กรองศูนย์"><option value="">ทุกศูนย์</option></select>
+      <select id="branchDataFilter" aria-label="กรองอันดับผลงาน KPI">
+        <option value="all">ทุกอันดับ</option>
+        <option value="top">10 อันดับแรก</option>
+        <option value="bottom">10 อันดับท้าย</option>
+        <option value="scored">มีข้อมูล KPI ยืนยัน</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table id="branchTable">
+        <thead><tr><th>อันดับ</th><th>ศูนย์</th><th>สาขา</th><th>ผู้จัดการศูนย์</th><th>ผู้รับผิดชอบสาขา</th><th>CIF</th><th>หนี้คงเหลือ (ลบ.)</th><th>คะแนน KPI</th><th>ข้อมูลยืนยัน</th></tr></thead>
+        <tbody id="branchTableBody"></tbody>
+      </table>
+    </div>
+    <div id="branchCount" class="muted" aria-live="polite"></div>
+  </section>
+</main>
+
+<!-- Modal สำหรับ Login / นำเข้าไฟล์ -->
+<div id="modal" class="modal hidden">
+  <div id="modalCard" class="modal-card">
+    <div class="toolbar" style="justify-content: space-between; margin-bottom: 15px;">
+      <h2 id="modalTitle" style="margin:0;"></h2>
+      <button id="closeModal" class="secondary" style="padding: 4px 10px;">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Chart.js สำหรับวาดกราฟมืออาชีพ -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+let state = { token: '', data: null, branchData: [], barChart: null, pieChart: null, standalone: false };
+const API_URL_DEFAULT = new URLSearchParams(location.search).get('api') ||
+  'https://script.google.com/macros/s/AKfycbwST502HeSEL3bYmV8Pf0WPvy9_Knz_ZzMQD3BEfOo2oIdgrbc3ASz-bFq3U_wR2_4-/exec';
+const pendingRequests = new Map();
+
+function standaloneCall(action, extra) {
+  return new Promise((resolve, reject) => {
+    const apiUrl = API_URL_DEFAULT;
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(apiUrl)) {
+      reject(new Error('URL Web App ไม่ถูกต้อง: ต้องเป็น https://script.google.com/macros/s/.../exec'));
+      return;
+    }
+    const requestId = Date.now() + '_' + Math.random().toString(36).slice(2);
+    const iframe = document.createElement('iframe');
+    iframe.name = 'kpi_api_' + requestId;
+    iframe.hidden = true;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = apiUrl;
+    form.target = iframe.name;
+    form.hidden = true;
+    form.acceptCharset = 'UTF-8';
+    const values = { action, requestId, origin: location.origin, payload: JSON.stringify({ token: state.token, ...extra }) };
+    Object.entries(values).forEach(([name, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value;
+      form.appendChild(input);
+    });
+    const timeout = setTimeout(() => {
+      cleanupRequest(requestId);
+      reject(new Error('เชื่อมต่อ GAS ไม่สำเร็จ: ตรวจว่า Deploy เป็น Web app, Execute as: Me, Who has access: Anyone และอัปเดตเป็นเวอร์ชันล่าสุด'));
+    }, 30000);
+    pendingRequests.set(requestId, { resolve, reject, iframe, form, timeout });
+    document.body.append(iframe, form);
+    form.submit();
+  });
+}
+
+function cleanupRequest(requestId) {
+  const request = pendingRequests.get(requestId);
+  if (!request) return;
+  clearTimeout(request.timeout);
+  request.iframe.remove();
+  request.form.remove();
+  pendingRequests.delete(requestId);
+}
+
+window.addEventListener('message', event => {
+  const response = event.data;
+  if (!response || response.app !== 'KPI_EXECUTIVE_DASHBOARD' || !response.requestId) return;
+  const request = pendingRequests.get(response.requestId);
+  if (!request || event.source !== request.iframe.contentWindow) return;
+  cleanupRequest(response.requestId);
+  response.ok ? request.resolve(response.data) : request.reject(new Error(response.error || 'Request failed'));
+});
+
+async function call(action, extra = {}) {
+  if (!state.standalone) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(res => res?.ok ? resolve(res.data) : reject(new Error(res?.error || 'Failed')))
+        .withFailureHandler(err => reject(new Error(err?.message || 'ไม่สามารถเชื่อมต่อระบบได้')))
+        .api({ action, token: state.token, ...extra });
+    });
+  }
+  return standaloneCall(action, extra);
+}
+
+function field(form, labelText, name, type = 'text') {
+  const label = document.createElement('label');
+  label.className = 'field';
+  label.appendChild(document.createTextNode(labelText));
+  const input = document.createElement('input');
+  input.name = name;
+  input.type = type;
+  input.autocomplete = name === 'password' ? 'current-password' : name === 'username' ? 'username' : 'off';
+  input.required = true;
+  label.appendChild(input);
+  form.appendChild(label);
+  return input;
+}
+
+function notify(text, type = '') {
+  const n = $('notice');
+  n.textContent = text;
+  n.className = 'message ' + type;
+}
+
+function formatNum(v, d = 2) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toLocaleString('th-TH', { maximumFractionDigits: d });
+}
+
+/* ---------- 📈 วาดกราฟมืออาชีพด้วย Chart.js ---------- */
+function renderCharts(kpiList) {
+  if (typeof Chart !== 'function') {
+    notify('โหลดไลบรารีกราฟไม่สำเร็จ กรุณาตรวจการเชื่อมต่ออินเทอร์เน็ต', 'warn');
+    return;
+  }
+  const ranked = scoreKpis(kpiList);
+  const labels = ranked.map((item, index) => (index + 1) + '. KPI ' + item.id);
+  const scores = ranked.map(item => Number(item.score.toFixed(2)));
+  const totalScore = ranked.reduce((sum, item) => sum + item.score, 0);
+  const totalWeight = ranked.reduce((sum, item) => sum + item.weight, 0);
+
+  // 1. Bar Chart: ความคืบหน้าเทียบเป้าหมายระดับเขต
+  if (state.barChart) state.barChart.destroy();
+  state.barChart = new Chart($('kpiBarChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'คะแนนถ่วงน้ำหนัก',
+        data: scores,
+        backgroundColor: '#16834b',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, max: Math.max(...ranked.map(item => item.weight), 10), title: { display: true, text: 'คะแนน' } } }
+    }
+  });
+
+  // 2. Doughnut: คะแนนสะสม เทียบคะแนนเต็ม
+  if (state.pieChart) state.pieChart.destroy();
+  state.pieChart = new Chart($('kpiPieChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['คะแนนที่ทำได้', 'คะแนนที่ยังขาด'],
+      datasets: [{
+        data: [totalScore, Math.max(0, totalWeight - totalScore)],
+        backgroundColor: ['#087b46', '#d5e8da']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+}
+
+function scoreKpis(kpiList) {
+  return (kpiList || []).map(item => {
+    const weight = Number(item.weight) || 0;
+    const progress = item.last && item.progress !== null && item.progress !== undefined
+      ? Math.max(0, Math.min(100, Number(item.progress)))
+      : 0;
+    return { ...item, weight: weight, progress: progress, score: weight * progress / 100 };
+  }).sort((a, b) => b.score - a.score || a.id - b.id);
+}
+
+function renderDashboard() {
+  const rankedKpi = scoreKpis(state.data.kpi);
+  const scope = $('scopeSelect').value || 'R';
+  const branch = $('branchScopeSelect').value;
+  const selectedBranch = (state.data.branches || []).find(item => item.hubId === scope && item.branch === branch);
+  const selectedCenter = (state.data.hubs || []).find(item => item.id === scope);
+  const manager = selectedBranch?.manager || (state.data.branches || []).find(item => item.hubId === scope)?.manager || '';
+  $('branchScopeSelect').classList.toggle('hidden', scope === 'R');
+  $('scopeContext').textContent = scope === 'R'
+    ? 'ระดับเขตนครศรีธรรมราช'
+    : branch
+      ? `สาขา ${branch} · ผู้จัดการศูนย์: ${manager || 'ไม่พบข้อมูล'} · ผู้รับผิดชอบ: ${(selectedBranch?.staff || []).join(', ') || 'ไม่พบข้อมูล'}`
+      : `${selectedCenter?.name || scope} · ผู้จัดการศูนย์: ${manager || 'ไม่พบข้อมูล'}`;
+  
+  // Stats Cards
+  const stats = $('stats');
+  stats.replaceChildren();
+  
+  const hubFilter = $('dashboardHubFilter').value;
+  const visibleSnapshots = state.data.snapshots.filter(row => !hubFilter || String(row.hub) === hubFilter);
+  const totalBal = visibleSnapshots.reduce((s, r) => s + Number(r.balance || 0), 0);
+  const totalScore = rankedKpi.reduce((sum, item) => sum + item.score, 0);
+  const totalWeight = rankedKpi.reduce((sum, item) => sum + item.weight, 0);
+  const verifiedCount = rankedKpi.filter(item => item.last).length;
+
+  const cards = [
+    ['คะแนนรวม', formatNum(totalScore, 2) + ' / ' + formatNum(totalWeight, 0)],
+    ['ข้อมูลยืนยันแล้ว', verifiedCount + ' / ' + rankedKpi.length + ' ตัวชี้วัด'],
+    ['สาขาทั้งหมด', (hubFilter ? visibleSnapshots.length : (state.data.branches.length || state.data.snapshots.length)) + ' สาขา'],
+    ['หนี้คงเหลือรวม', formatNum(totalBal, 3) + ' ลบ.']
+  ];
+
+  cards.forEach(([title, val]) => {
+    const div = document.createElement('div');
+    div.className = 'stat';
+    const label = document.createElement('span');
+    label.className = 'muted';
+    label.textContent = title;
+    const value = document.createElement('strong');
+    value.textContent = val;
+    div.append(label, value);
+    stats.appendChild(div);
+  });
+
+  // Table
+  const tbody = $('kpiTableBody');
+  tbody.replaceChildren();
+  const query = $('kpiSearch').value.trim().toLocaleLowerCase('th');
+  rankedKpi.filter(item => {
+    const matchesText = !query || `${item.id} ${item.name}`.toLocaleLowerCase('th').includes(query);
+    return matchesText;
+  }).forEach(item => {
+    const tr = document.createElement('tr');
+    const rank = rankedKpi.findIndex(value => value.id === item.id) + 1;
+    const cells = [rank, item.name, formatNum(item.weight, 0) + ' คะแนน',
+      item.target !== null ? formatNum(item.target) + ' ' + item.unit : 'ตามเงื่อนไขเขต',
+      item.last ? formatNum(item.last.value) + ' ' + item.unit : 'ไม่มีผลจริง',
+      formatNum(item.score, 2) + ' คะแนน',
+      item.last ? formatNum(item.progress, 1) + '%' : '—'];
+    cells.forEach((value, index) => {
+      const td = document.createElement('td');
+      if (index === 0) {
+        const strong = document.createElement('b');
+        strong.textContent = '#' + value;
+        td.appendChild(strong);
+      } else {
+        td.textContent = value;
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  renderCharts(rankedKpi);
+  renderBranchTable();
+}
+
+/* ---------- 🚀 การจัดการเหตุการณ์และเมนูผู้บริหาร ---------- */
+
+async function loadData() {
+  try {
+    state.data = await call('public');
+    state.data.branches = state.data.branches || await call('branchData');
+    $('reportScopeSelect').replaceChildren(new Option('ระดับเขต', 'R'));
+    $('dashboardHubFilter').replaceChildren(new Option('ทุกศูนย์', ''));
+    $('branchHubFilter').replaceChildren(new Option('ทุกศูนย์', ''));
+    state.data.hubs.forEach(hub => {
+      const option = new Option(hub.name, hub.id);
+      $('reportScopeSelect').add(new Option(hub.name, hub.id));
+      $('dashboardHubFilter').add(option);
+      $('branchHubFilter').add(new Option(hub.name, hub.id));
+    });
+    $('scopeSelect').value = 'R';
+    $('branchScopeSelect').replaceChildren(new Option('ทุกสาขาในศูนย์', ''));
+    state.data.branches.forEach(branch => $('branchScopeSelect').add(new Option(branch.branch, branch.branch)));
+    $('branchReportPanel').classList.remove('hidden');
+    fillBranchScopeOptions('R');
+    renderDashboard();
+    notify('โหลดข้อมูลแดชบอร์ดสำเร็จ', 'good');
+  } catch (err) {
+    notify('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message, 'bad');
+  }
+}
+
+function fillBranchScopeOptions(hubId) {
+  const select = $('branchScopeSelect');
+  select.replaceChildren(new Option('ทุกสาขาในศูนย์', ''));
+  if (hubId === 'R') {
+    select.classList.add('hidden');
+    return;
+  }
+  select.classList.remove('hidden');
+  (state.data?.branches || []).filter(branch => branch.hubId === hubId).forEach(branch => {
+    select.add(new Option(branch.branch, branch.branch));
+  });
+}
+
+function visibleBranches() {
+  const query = $('branchSearch').value.trim().toLocaleLowerCase('th');
+  const hub = $('branchHubFilter').value;
+  const filter = $('branchDataFilter').value;
+  const allBranches = state.data?.branches || [];
+  return allBranches.filter(branch => {
+    if (hub && branch.hubId !== hub) return false;
+    if (filter === 'top' && Number(branch.rank) > 10) return false;
+    if (filter === 'bottom' && Number(branch.rank) <= Math.max(0, allBranches.length - 10)) return false;
+    if (filter === 'scored' && !Number(branch.confirmedKpis)) return false;
+    const content = `${branch.hubName} ${branch.manager || ''} ${branch.branch} ${branch.staff.join(' ')}`.toLocaleLowerCase('th');
+    return !query || content.includes(query);
+  });
+}
+
+function renderBranchTable() {
+  const tbody = $('branchTableBody');
+  const branchRows = visibleBranches();
+  tbody.replaceChildren();
+  const fragment = document.createDocumentFragment();
+  branchRows.forEach(branch => {
+    const row = document.createElement('tr');
+    [branch.rank ? '#' + branch.rank : '—', branch.hubName, branch.branch, branch.manager || 'ไม่พบผู้จัดการศูนย์',
+      branch.staff.length ? branch.staff.join(', ') : 'ไม่พบผู้รับผิดชอบ',
+      branch.hasSnapshot ? formatNum(branch.cif, 0) : '—',
+      branch.hasSnapshot ? formatNum(branch.balance, 3) : '—',
+      formatNum(branch.score || 0, 2) + ' / ' + formatNum(branch.scoreMax || 0, 0),
+      formatNum(branch.confirmedKpis || 0, 0) + ' / 8'].forEach(value => {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+    fragment.appendChild(row);
+  });
+  tbody.appendChild(fragment);
+  $('branchCount').textContent = `อันดับผลงาน · แสดง ${formatNum(branchRows.length, 0)} จาก ${formatNum((state.data?.branches || []).length, 0)} สาขา`;
+}
+
+function setupStandalone() {
+  state.standalone = !(typeof google !== 'undefined' && google.script && google.script.run);
+  loadData();
+}
+
+function downloadFile(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function escapeReportText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
+function safeCell(value) {
+  const text = String(value ?? '');
+  return /^[=+@-]/.test(text) ? "'" + text : text;
+}
+
+function reportData() {
+  return {
+    kpis: state.data.kpi,
+    branches: visibleBranches(),
+    generatedAt: new Date().toLocaleString('th-TH')
+  };
+}
+
+function openOnePageKpiAnalysis() {
+  if (!state.data || !Array.isArray(state.data.kpi) || !state.data.kpi.length) {
+    notify('ยังไม่มีข้อมูล KPI สำหรับวิเคราะห์ กรุณารีเฟรชข้อมูลก่อน', 'warn');
+    return;
+  }
+  const ranked = scoreKpis(state.data?.kpi || []);
+  const totalScore = ranked.reduce((sum, item) => sum + item.score, 0);
+  const totalWeight = ranked.reduce((sum, item) => sum + item.weight, 0);
+  const coverage = ranked.filter(item => item.last).length;
+  const lowest = ranked.slice().sort((a, b) => a.score - b.score || a.id - b.id).slice(0, 3);
+  const scopeText = $('scopeContext').textContent;
+  const recommendations = lowest.map(item => item.last
+    ? `ทบทวนปัจจัยและแผนติดตาม KPI ${item.id}: ${item.name} (คะแนน ${formatNum(item.score, 2)} จาก ${formatNum(item.weight, 0)}) โดยยืนยันข้อมูลกับหน่วยงานเจ้าของข้อมูลก่อนกำหนดมาตรการ`
+    : `เร่งรวบรวมและยืนยันข้อมูล KPI ${item.id}: ${item.name} ก่อนวิเคราะห์ผลและกำหนดผู้รับผิดชอบ`
+  );
+  const rows = ranked.map((item, index) => {
+    const progress = item.last ? formatNum(item.progress, 1) + '%' : 'ไม่มีข้อมูล';
+    const actual = item.last ? formatNum(item.last.value) + ' ' + item.unit : 'ยังไม่มีผลยืนยัน';
+    const target = item.target === null ? 'เป้าหมายระดับเขต' : formatNum(item.target) + ' ' + item.unit;
+    return `<tr><td class="rank">${index + 1}</td><td><b>KPI ${escapeReportText(item.id)}</b><br>${escapeReportText(item.name)}</td><td>${escapeReportText(target)}</td><td class="num">${escapeReportText(actual)}</td><td><div class="bar"><i style="width:${item.last ? Math.max(0, Math.min(100, item.progress)) : 0}%"></i></div><small>${escapeReportText(progress)}</small></td><td class="num"><b>${formatNum(item.score, 2)}</b> / ${formatNum(item.weight, 0)}</td></tr>`;
+  }).join('');
+  const reportHtml = `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>วิเคราะห์ KPI One Page</title><style>
+    @page{size:A4 landscape;margin:9mm}*{box-sizing:border-box}body{font:9pt/1.35 Tahoma,Arial,sans-serif;color:#173b2b;margin:0}header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16834b;padding-bottom:8px}h1{font-size:17pt;color:#155b38;margin:0}h2{font-size:10pt;color:#155b38;margin:10px 0 5px}.muted,small{color:#526d5e}.scope{margin-top:4px;color:#087b46;font-weight:bold}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:9px 0}.stat{border:1px solid #d5e8da;background:#f4faf6;border-radius:5px;padding:7px 9px}.stat b{display:block;font-size:13pt;color:#155b38}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:5px 7px;border-bottom:1px solid #d5e8da;vertical-align:middle}th{background:#e5f5ea;text-align:left;font-size:8pt}tr:nth-child(even) td{background:#f8fbf9}.rank{width:5%;text-align:center;font-weight:bold;color:#16834b}.num{text-align:right}.bar{height:8px;background:#dceee2;border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:#16834b;border-radius:6px}.recommend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.action{border-left:3px solid #16834b;background:#f4faf6;padding:6px 8px}.foot{margin-top:8px;padding-top:5px;border-top:1px solid #d5e8da;font-size:7pt;color:#526d5e}.print{position:fixed;top:12px;right:12px;padding:8px 12px;border:0;border-radius:5px;background:#16834b;color:#fff;font-weight:bold;cursor:pointer}@media print{.print{display:none}}
+    </style></head><body><button class="print" onclick="window.print()">พิมพ์ / บันทึก PDF</button><header><div><h1>วิเคราะห์ผลการดำเนินงาน KPI</h1><div class="muted">${escapeReportText(state.data.title)} · ปีบัญชี 2569</div><div class="scope">${escapeReportText(scopeText)}</div></div><div class="muted">จัดทำ ${escapeReportText(new Date().toLocaleString('th-TH'))}</div></header><section class="stats"><div class="stat">คะแนนถ่วงน้ำหนักรวม<b>${formatNum(totalScore, 2)} / ${formatNum(totalWeight, 0)}</b></div><div class="stat">ข้อมูลที่ยืนยันแล้ว<b>${coverage} / ${ranked.length} ตัวชี้วัด</b></div><div class="stat">คะแนนเฉลี่ยถ่วงน้ำหนัก<b>${totalWeight ? formatNum(totalScore / totalWeight * 100, 1) : '—'}%</b></div></section><h2>อันดับผลงานตัวชี้วัด (สูงสุดไปต่ำสุด)</h2><table><thead><tr><th class="rank">อันดับ</th><th>ตัวชี้วัด</th><th>เป้าหมาย</th><th class="num">ผลงานล่าสุด</th><th>ความคืบหน้า</th><th class="num">คะแนน</th></tr></thead><tbody>${rows}</tbody></table><h2>ประเด็นพัฒนาเบื้องต้น</h2><section class="recommend">${recommendations.map(text => `<div class="action">${escapeReportText(text)}</div>`).join('')}</section><div class="foot">คะแนน = น้ำหนัก × ความคืบหน้า (จำกัดไม่เกิน 100%); ข้อเสนอแนะเป็นแนวทางจากคะแนนและ coverage ไม่ใช่ข้อสรุปสาเหตุ ต้องตรวจสอบกับเจ้าของข้อมูลก่อนดำเนินการ</div></body></html>`;
+  const report = window.open('', '_blank');
+  if (!report) { notify('เบราว์เซอร์บล็อกหน้าต่างรายงาน โปรดอนุญาต popup แล้วลองอีกครั้ง', 'warn'); return; }
+  report.document.open();
+  report.document.write(reportHtml);
+  report.document.close();
+}
+
+function exportExcel() {
+  if (typeof XLSX === 'undefined') throw new Error('โหลด Excel exporter ไม่สำเร็จ');
+  const data = reportData();
+  const workbook = XLSX.utils.book_new();
+  const kpiRows = [['ข้อ', 'ตัวชี้วัด', 'เป้าหมาย', 'ผลงานล่าสุด', 'งวด', 'สถานะ'], ...data.kpis.map(k => [k.id, k.name, k.target === null ? '' : `${k.target} ${k.unit}`, k.last?.value ?? '', k.last?.period ?? '', k.status])];
+  const branchRows = [['ศูนย์', 'สาขา', 'CIF', 'หนี้คงเหลือ (ล้านบาท)', 'ผู้รับผิดชอบ', 'สถานะข้อมูล'], ...data.branches.map(b => [b.hubName, b.branch, b.cif ?? '', b.balance ?? '', b.staff.join(', '), b.hasSnapshot ? 'มีข้อมูล' : 'ยังไม่มี snapshot'])];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(kpiRows), 'KPI');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(branchRows), 'Branches');
+  XLSX.writeFile(workbook, 'KPI_Nakhon_Si_Thammarat.xlsx');
+}
+
+function exportCsv() {
+  const rows = [['ศูนย์', 'สาขา', 'CIF', 'หนี้คงเหลือ (ล้านบาท)', 'ผู้รับผิดชอบ', 'สถานะข้อมูล'], ...visibleBranches().map(b => [b.hubName, b.branch, b.cif ?? '', b.balance ?? '', b.staff.join(', '), b.hasSnapshot ? 'มีข้อมูล' : 'ยังไม่มี snapshot'])];
+  const csv = '\ufeff' + rows.map(row => row.map(value => `"${safeCell(value).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  downloadFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'KPI_Branches.csv');
+}
+
+function exportWord(html, fileName) {
+  const documentHtml = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Tahoma,sans-serif;color:#173b2b}table{border-collapse:collapse;width:100%}th,td{border:1px solid #b7cbbd;padding:6px;text-align:left}th{background:#e5f5ea}h1,h2{color:#155b38}</style></head><body>${html}</body></html>`;
+  downloadFile(new Blob(['\ufeff', documentHtml], { type: 'application/msword' }), fileName);
+}
+
+async function exportPng() {
+  if (typeof html2canvas !== 'function') throw new Error('โหลด PNG exporter ไม่สำเร็จ');
+  const canvas = await html2canvas(document.querySelector('main'), { scale: 2, backgroundColor: '#f1faf4', useCORS: true });
+  canvas.toBlob(blob => blob && downloadFile(blob, 'KPI_Dashboard.png'), 'image/png');
+}
+
+function generateMinutes() {
+  const data = reportData();
+  const passed = data.kpis.filter(k => k.status === 'ผ่าน');
+  const failed = data.kpis.filter(k => k.status === 'ไม่ผ่าน');
+  const inProgress = data.kpis.filter(k => k.status === 'อยู่ระหว่างดำเนินการ');
+  const missing = data.kpis.filter(k => k.status === 'ยังไม่มีผลจริงยืนยัน');
+  const branchDebt = data.branches.filter(b => b.hasSnapshot).reduce((sum, b) => sum + Number(b.balance || 0), 0);
+  const noSnapshot = data.branches.filter(b => !b.hasSnapshot).length;
+  const noOwner = data.branches.filter(b => !b.staff.length);
+  const esc = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const statusLine = list => list.length ? list.map(k => `ข้อ ${k.id} ${k.name}`).join('、') : 'ไม่มี';
+  const recommendations = [];
+  if (failed.length) recommendations.push('มอบหมายศูนย์ที่เกี่ยวข้องจัดทำแผนเร่งรัดสำหรับ KPI ที่ยังไม่ผ่าน พร้อมกำหนดผู้รับผิดชอบและวันติดตาม');
+  if (missing.length || noSnapshot) recommendations.push('รวบรวมและยืนยันข้อมูลผลงาน/ข้อมูลสาขาที่ขาดก่อนประเมินผลรอบถัดไป');
+  if (noOwner.length) recommendations.push('ตรวจสอบและยืนยันผู้รับผิดชอบสำหรับสาขาที่ไม่มี mapping ในฐานรายชื่อ');
+  if (!recommendations.length) recommendations.push('ติดตามผลตามรอบรายงานและตรวจสอบความถูกต้องของข้อมูลก่อนการประชุมครั้งถัดไป');
+  const html = `<h1>ร่างรายงานการประชุม</h1><p>ระบบติดตามประเมินผล KPI ของ บน.2 เขตนครศรีธรรมราช</p><p>วันที่สร้าง: ${esc(data.generatedAt)} · สถานะเอกสาร: ร่างเพื่อทบทวน</p><h2>Executive Summary</h2><p>KPI ผ่าน ${passed.length}/${data.kpis.length} ข้อ; ไม่ผ่าน ${failed.length}; อยู่ระหว่างดำเนินการ ${inProgress.length}; ยังไม่มีผลยืนยัน ${missing.length}. มีข้อมูลหนี้จาก ${data.branches.length - noSnapshot} จาก ${data.branches.length} สาขา รวม ${branchDebt.toLocaleString('th-TH', { maximumFractionDigits: 3 })} ล้านบาท</p><h2>ผลการดำเนินงาน KPI</h2><table><tr><th>ข้อ</th><th>ตัวชี้วัด</th><th>เป้าหมาย</th><th>ผลงานล่าสุด</th><th>สถานะ</th></tr>${data.kpis.map(k => `<tr><td>${esc(k.id)}</td><td>${esc(k.name)}</td><td>${k.target === null ? 'ตามเงื่อนไขเขต' : esc(k.target + ' ' + k.unit)}</td><td>${k.last ? esc(k.last.value + ' ' + k.unit + ' (' + k.last.period + ')') : 'ไม่มีข้อมูลยืนยัน'}</td><td>${esc(k.status)}</td></tr>`).join('')}</table><h2>ประเด็นสำคัญ</h2><p>ยังไม่ผ่าน: ${esc(statusLine(failed))}<br>ยังไม่มีผลยืนยัน: ${esc(statusLine(missing))}<br>สาขาไม่มี snapshot: ${noSnapshot} สาขา<br>สาขาไม่มี mapping ผู้รับผิดชอบ: ${noOwner.length} สาขา</p><h2>ปัญหาและข้อจำกัดข้อมูล</h2><p>ระบบไม่มีบันทึกสาเหตุอุปสรรคจากทุกหน่วยงานโดยตรง รายการข้างต้นจึงเป็นช่องว่างของผล/ข้อมูล ไม่ใช่ข้อสรุปสาเหตุ ต้องให้ที่ประชุมตรวจสอบและเพิ่มเติม</p><h2>ข้อเสนอแนะ</h2><ol>${recommendations.map(item => `<li>${esc(item)}</li>`).join('')}</ol><h2>ร่างมติที่ประชุม</h2><ol><li>รับทราบผล KPI และข้อมูลที่ยังขาดตามรายงานฉบับนี้</li><li>มอบหมายผู้รับผิดชอบที่ประชุมเห็นชอบจัดทำแผน/ส่งข้อมูลเพิ่มเติม พร้อมกำหนดวันแล้วเสร็จ: __________________</li><li>ให้เลขานุการติดตามความคืบหน้าและรายงานในการประชุมครั้งถัดไป</li></ol><p>หมายเหตุ: เป็นร่างอัตโนมัติ โปรดตรวจสอบและเติมมติ/ผู้รับผิดชอบก่อนใช้เป็นรายงานทางการ</p>`;
+  openModal('ร่างรายงานการประชุม');
+  $('modalCard').classList.add('wide');
+  $('modalBody').innerHTML = `<div id="minutesPreview">${html}</div><button id="downloadMinutesBtn">ดาวน์โหลด Word</button>`;
+  $('downloadMinutesBtn').onclick = () => exportWord(html, 'KPI_Meeting_Minutes.doc');
+}
+
+// 1. ส่งออก One Page PDF
+async function handleExportPDF() {
+  notify('กำลังสร้างรายงาน One Page PDF...', 'warn');
+  try {
+    await downloadReport('exportPDF', { scope: $('reportScopeSelect').value }, 'ส่งออกรายงาน KPI สำเร็จ');
+    notify('ดาวน์โหลดรายงาน One Page สำเร็จ', 'good');
+  } catch (e) {
+    notify('สร้าง PDF ไม่สำเร็จ: ' + e.message, 'bad');
+  }
+}
+
+async function handleExportBranchPDF() {
+  notify('กำลังสร้างรายงานรายสาขา...', 'warn');
+  try {
+    await downloadReport('exportBranchPDF', {}, 'ดาวน์โหลดรายงานรายสาขาสำเร็จ');
+    notify('ดาวน์โหลดรายงานรายสาขาสำเร็จ', 'good');
+  } catch (err) {
+    notify('สร้างรายงานรายสาขาไม่สำเร็จ: ' + err.message, 'bad');
+  }
+}
+
+async function downloadReport(action, params, successMessage) {
+  const res = await call(action, params);
+  const bytes = Uint8Array.from(atob(res.base64), character => character.charCodeAt(0));
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([bytes], { type: res.mimeType }));
+  link.download = res.fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  return successMessage;
+}
+
+// 2. นำเข้าไฟล์ 6035
+async function handleImport6035() {
+  openModal('นำเข้าไฟล์ 6035 (Bad Bank)');
+  const body = $('modalBody');
+  body.replaceChildren();
+
+  try {
+    const files = (await call('sourceFiles')).filter(f => /6035/i.test(f.name) && (f.mime === 'application/vnd.google-apps.spreadsheet' || f.mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
+    if (!files.length) {
+      body.textContent = 'ไม่พบไฟล์ Google Sheets หรือ .xlsx ในโฟลเดอร์ข้อมูลที่กำหนด';
+      return;
+    }
+    const sel = document.createElement('select');
+    sel.className = 'field';
+    files.forEach(f => sel.add(new Option(f.name + ' (' + f.modified.slice(0,10) + ')', f.id)));
+    body.appendChild(sel);
+    const help = document.createElement('p');
+    help.className = 'muted';
+    help.textContent = 'ระบบจะตรวจหัวตารางและนำเข้าข้อมูลแยกตามสาขา โดย snapshot เดิมจะคงอยู่หากนำเข้าไม่สำเร็จ';
+    body.appendChild(help);
+    
+    const btn = document.createElement('button');
+    btn.textContent = 'เริ่มนำเข้าไฟล์';
+    btn.style.marginTop = '8px';
+    btn.onclick = async () => {
+      btn.disabled = true;
+      try {
+        const started = await call('import6035', { fileId: sel.value });
+        body.replaceChildren();
+        const progress = document.createElement('p');
+        progress.textContent = started.message;
+        body.appendChild(progress);
+        await monitorImport(body, progress);
+      } catch (err) {
+        btn.disabled = false;
+        notify('เริ่มนำเข้าไม่สำเร็จ: ' + err.message, 'bad');
+      }
+    };
+    body.appendChild(btn);
+  } catch (err) {
+    body.textContent = 'ไม่สามารถดึงรายชื่อไฟล์ได้: ' + err.message;
+  }
+}
+
+async function handleKpiSourceImport(kpiId) {
+  openModal('นำเข้าข้อมูลต้นฉบับ KPI ' + kpiId);
+  const body = $('modalBody');
+  body.replaceChildren();
+  const status = document.createElement('p');
+  status.className = 'muted';
+  status.textContent = 'กำลังอ่านรายชื่อไฟล์จาก Drive...';
+  body.appendChild(status);
+  try {
+    const files = (await call('sourceFiles')).filter(file =>
+      file.mime === 'application/vnd.google-apps.spreadsheet' || file.mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    if (!files.length) {
+      status.textContent = 'ไม่พบ Google Sheets หรือไฟล์ Excel ในโฟลเดอร์ Drive ที่กำหนด';
+      return;
+    }
+    body.replaceChildren();
+    const picker = document.createElement('select');
+    picker.className = 'field';
+    files.forEach(file => picker.add(new Option(file.name + ' · ' + file.modified.slice(0, 10), file.id)));
+    const help = document.createElement('p');
+    help.className = 'muted';
+    help.textContent = 'ระบบจะเก็บทุกแถวที่มีข้อมูลจากทุกชีตลง KPI_SOURCE_' + kpiId + ' โดยไม่ลบประวัติเดิม';
+    const importButton = document.createElement('button');
+    importButton.type = 'button';
+    importButton.textContent = 'นำเข้าและเก็บข้อมูลต้นฉบับ';
+    importButton.onclick = async () => {
+      importButton.disabled = true;
+      try {
+        const result = await call('importKpiSource', { kpiId: kpiId, fileId: picker.value });
+        const refreshed = await call('public');
+        state.data.sources = refreshed.sources;
+        closeModal();
+        notify('นำเข้า KPI ' + kpiId + ' สำเร็จ เก็บ ' + formatNum(result.imported, 0) + ' แถวใน ' + result.sheetName, 'good');
+      } catch (error) {
+        importButton.disabled = false;
+        notify('นำเข้าต้นฉบับ KPI ' + kpiId + ' ไม่สำเร็จ: ' + error.message, 'bad');
+      }
+    };
+    body.append(picker, help, importButton);
+  } catch (error) {
+    status.textContent = 'อ่านรายชื่อไฟล์จาก Drive ไม่สำเร็จ: ' + error.message;
+  }
+}
+
+async function monitorImport(container, progress) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 10 * 60 * 1000) {
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    const status = await call('importStatus');
+    if (status.status === 'done') {
+      progress.textContent = `นำเข้า ${status.sourceName} สำเร็จ (${formatNum(status.branchCount, 0)} สาขา)`;
+      notify('นำเข้าข้อมูล 6035 สำเร็จ', 'good');
+      await loadData();
+      return;
+    }
+    if (status.status === 'error') throw new Error(status.error || 'นำเข้าไม่สำเร็จ');
+    progress.textContent = `${status.message} (${formatNum(status.processed, 0)} / ${formatNum(status.lastRow, 0)} แถว)`;
+  }
+  progress.textContent = 'งานนำเข้ายังทำงานอยู่ สามารถปิดหน้าต่างนี้ได้ ระบบจะทำต่อเบื้องหลัง';
+}
+
+// 3. นำเข้า PDF ประจำเดือน
+function handleImportMonthly() {
+  openModal('นำเข้ารายงานผล KPI ประจำเดือน (PDF)');
+  const body = $('modalBody');
+  body.replaceChildren();
+
+  const help = document.createElement('p');
+  help.className = 'muted';
+  help.textContent = 'ลงทะเบียน PDF เป็นเอกสารอ้างอิงเท่านั้น ระบบยังไม่ถอดค่าตัวเลขจากเอกสารโดยอัตโนมัติ';
+  body.appendChild(help);
+
+  const input = document.createElement('input');
+  input.placeholder = 'วาง Google Drive File ID ของ PDF';
+  input.setAttribute('aria-label', 'Google Drive File ID ของ PDF');
+  input.required = true;
+  input.className = 'field';
+  body.appendChild(input);
+
+  const btn = document.createElement('button');
+  btn.textContent = 'ลงทะเบียน PDF';
+  btn.style.marginTop = '15px';
+  btn.onclick = async () => {
+    if (!input.value.trim()) {
+      input.focus();
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await call('registerMonthlyPdf', { fileId: input.value });
+      const refreshed = await call('public');
+      state.data.sources = refreshed.sources;
+      closeModal();
+      notify(res.message, 'good');
+    } catch (e) {
+      btn.disabled = false;
+      notify('ลงทะเบียน PDF ไม่สำเร็จ: ' + e.message, 'bad');
+    }
+  };
+  body.appendChild(btn);
+}
+
+function openModal(title) {
+  $('modalTitle').textContent = title;
+  $('modal').classList.remove('hidden');
+}
+function closeModal() { $('modal').classList.add('hidden'); }
+
+/* ---------- 🔑 ระบบล็อกอิน ---------- */
+$('loginBtn').onclick = () => {
+  openModal('เข้าสู่ระบบผู้ดูแลระบบ');
+  const body = $('modalBody');
+  body.replaceChildren();
+
+  const form = document.createElement('form');
+  const u = field(form, 'รหัสพนักงาน (Username)', 'username');
+  u.inputMode = 'numeric';
+  u.autocomplete = 'username';
+  const p = field(form, 'รหัสผ่าน (ใช้รหัสพนักงานเดียวกัน)', 'password', 'password');
+
+  const sub = document.createElement('button');
+  sub.textContent = 'เข้าสู่ระบบ';
+  sub.style.marginTop = '10px';
+  form.appendChild(sub);
+
+  form.onsubmit = async e => {
+    e.preventDefault();
+    try {
+      const res = await call('login', { username: u.value, password: p.value });
+      state.token = res.token;
+      state.data.branches = await call('branchData');
+      renderBranchTable();
+      closeModal();
+      $('adminPanel').classList.remove('hidden');
+      $('branchReportPanel').classList.remove('hidden');
+      $('loginBtn').classList.add('hidden');
+      $('logoutBtn').classList.remove('hidden');
+      $('accountBadge').textContent = 'สถานะ: ผู้ดูแลระบบ (Admin)';
+      notify('เข้าสู่ระบบสำเร็จ', 'good');
+    } catch (err) {
+      alert('ล็อกอินไม่ผ่าน: ' + err.message);
+    }
+  };
+  body.appendChild(form);
+};
+
+$('logoutBtn').onclick = async () => {
+  try {
+    await call('logout');
+  } catch (err) {
+    notify('ปิดเซสชันบนระบบไม่สำเร็จ: ' + err.message, 'warn');
+  } finally {
+    state.token = '';
+    $('adminPanel').classList.add('hidden');
+    $('loginBtn').classList.remove('hidden');
+    $('logoutBtn').classList.add('hidden');
+    $('accountBadge').textContent = 'สถานะ: ผู้ใช้ทั่วไป';
+    $('scopeSelect').value = 'R';
+    if (state.data) {
+      const publicData = await call('public').catch(() => null);
+      if (publicData) {
+        state.data.kpi = publicData.kpi;
+        state.data.branches = publicData.branches || [];
+      }
+      renderDashboard();
+    }
+    notify('ออกจากระบบแล้ว', 'good');
+  }
+};
+
+$('changeLoginBtn').onclick = () => {
+  openModal('เปลี่ยนรหัสเข้าสู่ระบบผู้ดูแล');
+  const body = $('modalBody');
+  body.replaceChildren();
+  const form = document.createElement('form');
+  const currentPassword = field(form, 'รหัสพนักงานปัจจุบัน', 'currentPassword', 'password');
+  const newEmployeeId = field(form, 'รหัสพนักงานใหม่ (4-20 หลัก)', 'newEmployeeId');
+  newEmployeeId.inputMode = 'numeric';
+  newEmployeeId.pattern = '[0-9]{4,20}';
+  newEmployeeId.title = 'กรอกรหัสพนักงานตัวเลข 4-20 หลัก';
+  const help = document.createElement('p');
+  help.className = 'muted';
+  help.textContent = 'ระบบจะใช้รหัสพนักงานใหม่เป็นทั้ง Username และ Password';
+  form.appendChild(help);
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.textContent = 'บันทึกรหัสใหม่';
+  form.appendChild(submit);
+  form.onsubmit = async event => {
+    event.preventDefault();
+    submit.disabled = true;
+    try {
+      const result = await call('changeAdminEmployeeId', {
+        currentPassword: currentPassword.value,
+        newEmployeeId: newEmployeeId.value
+      });
+      closeModal();
+      notify(result.message, 'good');
+    } catch (error) {
+      submit.disabled = false;
+      notify('เปลี่ยนรหัสเข้าสู่ระบบไม่สำเร็จ: ' + error.message, 'bad');
+    }
+  };
+  body.appendChild(form);
+};
+
+$('closeModal').onclick = closeModal;
+$('exportPdfBtn').onclick = handleExportPDF;
+$('exportBranchPdfBtn').onclick = handleExportBranchPDF;
+$('exportXlsxBtn').onclick = () => {
+  try { exportExcel(); } catch (err) { notify(err.message, 'bad'); }
+};
+$('exportWordBtn').onclick = () => {
+  const data = reportData();
+  const html = `<h1>${escapeReportText(state.data.title)}</h1><p>รายงานข้อมูลสาขา ณ ${escapeReportText(new Date().toLocaleDateString('th-TH'))}</p><table><tr><th>ศูนย์</th><th>สาขา</th><th>CIF</th><th>หนี้คงเหลือ (ล้านบาท)</th><th>ผู้รับผิดชอบ</th></tr>${data.branches.map(row => `<tr><td>${escapeReportText(row.hubName)}</td><td>${escapeReportText(row.branch)}</td><td>${row.cif ?? '-'}</td><td>${row.balance ?? '-'}</td><td>${escapeReportText(row.staff.join(', ') || 'ไม่พบผู้รับผิดชอบ')}</td></tr>`).join('')}</table>`;
+  exportWord(html, 'KPI_Branch_Report.doc');
+};
+$('exportCsvBtn').onclick = exportCsv;
+$('exportPngBtn').onclick = async () => {
+  try { await exportPng(); } catch (err) { notify(err.message, 'bad'); }
+};
+$('generateMinutesBtn').onclick = generateMinutes;
+$('analyzeOnePageBtn').onclick = openOnePageKpiAnalysis;
+$('kpiImportMenuBtn').onclick = () => {
+  const menu = $('kpiImportOptions');
+  const opening = menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', !opening);
+  $('kpiImportMenuBtn').setAttribute('aria-expanded', String(opening));
+};
+document.querySelectorAll('[data-kpi-import]').forEach(button => button.addEventListener('click', () => {
+  $('kpiImportOptions').classList.add('hidden');
+  $('kpiImportMenuBtn').setAttribute('aria-expanded', 'false');
+  handleKpiSourceImport(Number(button.dataset.kpiImport));
+}));
+$('import6035Btn').onclick = handleImport6035;
+$('initializeKpiSourcesBtn').onclick = handleInitializeKpiSources;
+$('initializeDatabaseBtn').onclick = handleInitializeDatabase;
+$('importMonthlyBtn').onclick = handleImportMonthly;
+$('recordKpiBtn').onclick = handleRecordKpi;
+$('importStaffBtn').onclick = handleImportStaff;
+
+async function handleImportStaff() {
+  const button = $('importStaffBtn');
+  button.disabled = true;
+  try {
+    const result = await call('importStaffRoster');
+    notify(`อัปเดตพนักงาน ${formatNum(result.total, 0)} ราย และมีทะเบียนสาขารวม ${formatNum(result.branchCount, 0)} สาขา`, 'good');
+  } catch (err) {
+    notify('นำเข้าฐานพนักงานไม่สำเร็จ: ' + err.message, 'bad');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handleInitializeDatabase() {
+  const button = $('initializeDatabaseBtn');
+  button.disabled = true;
+  notify('กำลังเตรียมฐานข้อมูลและนำเข้าไฟล์จาก Drive...', 'warn');
+  try {
+    const job = await call('initializeDatabase');
+    openModal('กำลังตั้งฐานข้อมูล');
+    const body = $('modalBody');
+    body.replaceChildren();
+    const progress = document.createElement('p');
+    progress.textContent = job.message;
+    body.appendChild(progress);
+    await monitorImport(body, progress);
+  } catch (err) {
+    notify('ตั้งฐาน/นำเข้าไม่สำเร็จ: ' + err.message, 'bad');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handleInitializeKpiSources() {
+  const button = $('initializeKpiSourcesBtn');
+  button.disabled = true;
+  notify('กำลังตั้งฐาน KPI และอ่านไฟล์จาก Drive...', 'warn');
+  try {
+    const result = await call('initializeKpiSourcesFromDrive');
+    await loadData();
+    openModal('ผลการตั้งฐานและนำเข้า KPI');
+    const body = $('modalBody');
+    body.replaceChildren();
+    const summary = document.createElement('p');
+    summary.textContent = `เพิ่มผลงานตั้งต้น ${formatNum(result.seededFacts, 0)} รายการ · นำเข้า ${formatNum(result.imported.length, 0)} ไฟล์ · ข้ามไฟล์เดิม ${formatNum(result.skipped.length, 0)} ไฟล์ · ผิดพลาด ${formatNum(result.errors.length, 0)} ไฟล์`;
+    body.appendChild(summary);
+    const list = document.createElement('div');
+    list.className = 'table-wrap';
+    const rows = [
+      ...result.imported.map(item => ['นำเข้าแล้ว', 'KPI ' + item.kpiId, item.fileName, formatNum(item.rows, 0) + ' แถว']),
+      ...result.skipped.map(item => ['มีอยู่แล้ว', 'KPI ' + item.kpiId, item.fileName, 'ไม่เพิ่มซ้ำ']),
+      ...result.errors.map(item => ['ผิดพลาด', 'KPI ' + item.kpiId, item.fileName, item.error])
+    ];
+    list.innerHTML = '<table><thead><tr><th>ผล</th><th>ข้อ</th><th>ไฟล์</th><th>รายละเอียด</th></tr></thead><tbody>' +
+      rows.map(row => '<tr>' + row.map(value => '<td>' + escapeReportText(value) + '</td>').join('') + '</tr>').join('') +
+      '</tbody></table>';
+    body.appendChild(list);
+    notify(result.errors.length ? 'ตั้งฐานเสร็จ แต่มีบางไฟล์นำเข้าไม่สำเร็จ' : 'ตั้งฐาน KPI และนำเข้าข้อมูลจาก Drive สำเร็จ', result.errors.length ? 'warn' : 'good');
+  } catch (error) {
+    notify('ตั้งฐาน/นำเข้า KPI ไม่สำเร็จ: ' + error.message, 'bad');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function handleRecordKpi() {
+  openModal('บันทึกผล KPI จากรายงาน');
+  const body = $('modalBody');
+  body.replaceChildren();
+  const form = document.createElement('form');
+  const makeSelect = (labelText, name, options) => {
+    const label = document.createElement('label');
+    label.className = 'field';
+    label.appendChild(document.createTextNode(labelText));
+    const select = document.createElement('select');
+    select.name = name;
+    select.required = true;
+    options.forEach(option => select.add(new Option(option.label, option.value)));
+    label.appendChild(select);
+    form.appendChild(label);
+    return select;
+  };
+  const kpiOptions = state.data.kpi.map(item => ({ label: `${item.id}. ${item.name} (${item.unit})`, value: item.id }));
+  const kpi = makeSelect('ตัวชี้วัด', 'kpiId', kpiOptions);
+  const scope = makeSelect('ระดับข้อมูล', 'scope', [
+    { label: 'ระดับเขต', value: 'R' },
+    ...state.data.hubs.map(hub => ({ label: hub.name, value: hub.id })),
+    ...(state.data.branches || []).map(branch => ({ label: branch.hubName + ' · ' + branch.branch, value: 'B:' + branch.hubId + ':' + branch.branch }))
+  ]);
+  const period = makeSelect('งวดข้อมูล', 'period', [
+    ...['2026-03','2026-04','2026-05','2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12','2027-01','2027-02','2027-03']
+      .map(value => ({ label: value, value }))
+  ]);
+  const value = field(form, 'ผลงานจริง', 'value', 'number');
+  value.step = 'any';
+  const asOf = field(form, 'วันที่ข้อมูล (เช่น 30/09/2569)', 'asOf');
+  const source = makeSelect('เอกสารอ้างอิง (ถ้ามี)', 'sourceId', []);
+  source.required = false;
+  const refreshSourceOptions = () => {
+    source.replaceChildren(new Option('ไม่ระบุ', ''));
+    (state.data.sources || []).filter(item => item.kind === 'MONTHLY_PDF' || item.kind === 'KPI_SOURCE_' + kpi.value)
+      .forEach(item => source.add(new Option(item.name, item.id)));
+  };
+  kpi.addEventListener('change', refreshSourceOptions);
+  refreshSourceOptions();
+  const note = field(form, 'หมายเหตุ (ถ้ามี)', 'note');
+  note.required = false;
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.textContent = 'บันทึกผล KPI';
+  form.appendChild(submit);
+  form.onsubmit = async event => {
+    event.preventDefault();
+    submit.disabled = true;
+    try {
+      const result = await call('saveFact', {
+        kpiId: kpi.value, scope: scope.value, period: period.value,
+        value: value.value, asOf: asOf.value, sourceId: source.value, note: note.value
+      });
+      const currentScope = $('branchScopeSelect').value
+        ? 'B:' + $('scopeSelect').value + ':' + $('branchScopeSelect').value
+        : $('scopeSelect').value;
+      state.data.kpi = await call('summary', { scope: currentScope });
+      renderDashboard();
+      closeModal();
+      notify(result.message, 'good');
+    } catch (err) {
+      submit.disabled = false;
+      notify('บันทึกผล KPI ไม่สำเร็จ: ' + err.message, 'bad');
+    }
+  };
+  body.appendChild(form);
+}
+
+$('scopeSelect').onchange = async () => {
+  const scope = $('scopeSelect').value;
+  fillBranchScopeOptions(scope);
+  $('scopeSelect').disabled = true;
+  try {
+    state.data.kpi = await call('summary', { scope });
+    $('dashboardHubFilter').value = scope === 'R' ? '' : scope;
+    $('branchHubFilter').value = scope === 'R' ? '' : scope;
+    renderDashboard();
+  } catch (err) {
+    $('scopeSelect').value = 'R';
+    notify('โหลดข้อมูลศูนย์ไม่สำเร็จ: ' + err.message, 'bad');
+  } finally {
+    $('scopeSelect').disabled = false;
+  }
+};
+
+$('branchScopeSelect').addEventListener('change', async () => {
+  const hub = $('scopeSelect').value;
+  const branch = $('branchScopeSelect').value;
+  const scope = branch ? `B:${hub}:${branch}` : hub;
+  try {
+    state.data.kpi = await call('summary', { scope });
+    renderDashboard();
+  } catch (err) {
+    notify('โหลดข้อมูลสาขาไม่สำเร็จ: ' + err.message, 'bad');
+  }
+});
+
+$('modal').addEventListener('click', event => {
+  if (event.target === $('modal')) closeModal();
+});
+$('branchSearch').addEventListener('input', renderBranchTable);
+$('branchHubFilter').addEventListener('change', renderBranchTable);
+$('branchDataFilter').addEventListener('change', renderBranchTable);
+$('kpiSearch').addEventListener('input', () => state.data && renderDashboard());
+$('dashboardHubFilter').addEventListener('change', async () => {
+  const scope = $('dashboardHubFilter').value || 'R';
+  $('scopeSelect').value = scope;
+  $('branchScopeSelect').value = '';
+  $('branchHubFilter').value = scope === 'R' ? '' : scope;
+  try { state.data.kpi = await call('summary', { scope }); }
+  catch (err) { notify('โหลดข้อมูลศูนย์ไม่สำเร็จ: ' + err.message, 'bad'); }
+  renderDashboard();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
+});
+
+setupStandalone();
+</script>
+</body>
+</html>
